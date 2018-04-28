@@ -21,6 +21,11 @@
       - tmux
       - tree
 
+  - name: Install necessary python packages
+    when: ansible_os_family == "Debian"
+    pip:
+      name: pyopenssl
+
   - name: APT Cleanup
     when: ansible_os_family == "Debian"
     apt: autoremove=true

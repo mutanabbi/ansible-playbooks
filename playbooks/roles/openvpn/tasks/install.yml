@@ -1,0 +1,115 @@
+---
+
+- name: Install OpenVPN
+  apt:
+    name: openvpn
+
+# Prepare OpenVPN infrastructure
+#- name: Copy config files
+#  copy:
+#    src:
+#    dst: /etc/openvpn
+#    owner: root
+#    group: root
+#    mode: 0640
+
+- name: Create directory for OpenVPN logs
+  file:
+    path: /var/log/openvpn
+    state: directory
+    owner: root
+    group: root
+    mode: 750
+
+- name: Create directory for OpenVPN client configurations
+  file:
+    path: /etc/openvpn/ccd
+    state: directory
+    owner: root
+    group: root
+    mode: 750
+
+# Prepare OpenSSL infrastructure
+- name: Create directory for OpenSSL CSR (certificate signing requests)
+  file:
+    path: /etc/ssl/csr
+    state: directory
+    owner: root
+    group: root
+    mode: 750
+
+# Generate CA crypto staff
+- name: Generate Lumba-Lumba CA private key
+  openssl_privatekey:
+    path: /etc/ssl/private/ca.pem
+    type: RSA
+    cipher: DES3
+    # TODO: change and hide passphrase
+    passphrase: qwerty
+    size: 4096
+    owner: root
+    group: root
+    mode: 0640
+
+- name: Generate Lumba-Lumba CA CSR (certificate signing request)
+  openssl_csr:
+    path: /etc/ssl/csr/ca.csr
+    privatekey_path: /etc/ssl/private/ca.pem
+    # TODO: change and hide passphrase
+    privatekey_passphrase: qwerty
+    common_name: lumba-lumba-ca
+
+- name: Generate Lumba-Lumba CA self-signed certificate
+  openssl_certificate:
+    path: /etc/ssl/certs/ca.crt
+    privatekey_path: /etc/ssl/private/ca.pem
+    # TODO: change and hide passphrase
+    privatekey_passphrase: qwerty
+    csr_path: /etc/ssl/csr/ca.csr
+    provider: selfsigned
+
+# Generate VPN crypto staff
+- name: Generate Lumba-Lumba VPN server private key
+  openssl_privatekey:
+    path: /etc/openvpn/server.key
+    type: RSA
+    # TODO: No cipher and passphrase?
+    size: 4096
+    owner: root
+    group: root
+    mode: 0640
+
+- name: Generate Lumba-Lumba VPN server CSR (certificate signing request)
+  openssl_csr:
+    path: /etc/ssl/csr/lumba-lumba-vpn.csr
+    privatekey_path: /etc/openvpn/server.key
+    common_name: lumba-lumba-vpn
+
+- name: Generate Lumba-Lumba VPN server certificate (signed by Lumba-Lumba CA)
+  openssl_certificate:
+    path: /etc/openvpn/vpn-server.crt
+    privatekey_path: /etc/ssl/private/ca.pem
+    # TODO: change and hide passphrase
+    privatekey_passphrase: qwerty
+    csr_path: /etc/ssl/csr/lumba-lumba-vpn.csr
+    provider: selfsigned
+
+- name: Copy Lumba-Lumba CA public certificate to Lumba-Lumba OpenVPN server config directory
+  copy:
+    remote_src: yes
+    src: /etc/ssl/certs/ca.crt
+    dest: /etc/openvpn/ca.crt
+    # TODO: It looks like CA and VPN Server must be available under different users
+    #owner: root
+    #group: root
+    #mode: 0640
+
+# TODO: generate CRL (Сertificate Revocation List) using native openssl. Ansible doesn't support it
+# TODO: generate Diffie-Hellman parameters  using native openssl. Ansible doesn't support it
+
+# Available starting ansible-2.5
+#- name: Generate Lumba-Lumba VPN Diffie-Hellman parameters
+#  openssl_dhparam:
+#    path: /etc/openvpn/dh.pem
+#    size: 4096
+#
