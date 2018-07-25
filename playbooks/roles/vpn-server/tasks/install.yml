@@ -1,0 +1,104 @@
+---
+
+- name: Install OpenVPN
+  apt:
+    name: openvpn
+
+# Prepare OpenVPN infrastructure
+- name: Create directory for OpenVPN logs
+  file:
+    path: /var/log/openvpn
+    state: directory
+    owner: root
+    group: root
+    # TODO: By some reason it's necessary at least 007 permission for openvpn to be able to create files in the directory (netherless it does it under root). I don't understand this yet
+    mode: 777
+
+- name: Create directory for OpenVPN client configurations
+  file:
+    path: /etc/openvpn/ccd
+    state: directory
+    owner: root
+    group: root
+    mode: 750
+
+- name: Copy config files
+  copy:
+    remote_src: no
+    # TODO: ansible root directory variable
+    src: ../conf/server.conf
+    dest: /etc/openvpn/
+    owner: root
+    group: root
+    mode: 0640
+
+- name: Create OpenVPN group
+  group:
+    name: openvpn
+
+- name: Create OpenVPN user
+  user:
+    name: openvpn
+    group: openvpn
+    home: /dev/null
+    createhome: no
+
+# Generate VPN crypto staff
+- name: Generate Lumba-Lumba VPN server private key
+  openssl_privatekey:
+    path: /etc/openvpn/server.key
+    type: RSA
+    # TODO: No cipher and passphrase?
+    size: 4096
+    owner: root
+    group: root
+    mode: 0600
+
+- name: Generate Lumba-Lumba VPN server CSR (certificate signing request)
+  openssl_csr:
+    path: /etc/ssl/csr/lumba-lumba-vpn.csr
+    privatekey_path: /etc/openvpn/server.key
+    common_name: lumba-lumba-vpn
+
+- stat: path=/etc/openvpn/ca.crt
+  register: vpn_server_cert
+
+- name: Generate Lumba-Lumba VPN server certificate (signed by Lumba-Lumba CA)
+  openssl_certificate:
+    path: /etc/openvpn/vpn-server.crt
+    privatekey_path: /etc/ssl/private/ca.pem
+    # TODO: change and hide passphrase
+    privatekey_passphrase: qwerty
+    csr_path: /etc/ssl/csr/lumba-lumba-vpn.csr
+    provider: selfsigned
+  when: vpn_server_cert is defined
+  register: vpn_server_cert_generation
+
+- name: Copy Lumba-Lumba CA public certificate to Lumba-Lumba OpenVPN server config directory
+  copy: content={{ hostvars[groups['ca'][0]]['ca_crt_content']['content'] | b64decode }} dest=/etc/openvpn/ca.crt
+
+- name: Copy Lumba-Lumba CA CRL file (list of expired certificates)
+  copy: content={{ hostvars[groups['ca'][0]]['crl_pem_content']['content'] | b64decode }} dest=/etc/openvpn/crl.pem
+
+- name: Generate Diffie-Hellman file to protect session keys (This is going to take a long time)
+  command: openssl dhparam -out /etc/openvpn/dh.pem 4096 creates=/etc/openvpn/dh.pem
+  #async: 45
+  #poll: 5
+  tags: optional
+# Available starting ansible-2.5
+#- name: Generate Lumba-Lumba VPN Diffie-Hellman parameters
+#  openssl_dhparam:
+#    path: /etc/openvpn/dh.pem
+#    size: 4096
+#
+
+- name: Generate HMAC-key to prevent DDoS
+  command: openvpn --genkey --secret /etc/openvpn/ta.key creates=/etc/openvpn/ta.key
+
+- name: Register content of ta.key as an ansible fact
+  slurp:
+    src: /etc/openvpn/ta.key
+  register: ta_key_content
+
+#TODO: sudo systemctl restart openvpn@server.service
+# To be able to investigate startup errors you can edit /lib/systemd/system/openvpn@.service and add --log /var/log/ilya.txt --verb 9 to the ExecStart field

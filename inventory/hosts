@@ -1,8 +1,11 @@
-[vps]
+[ca]
+lumba-lumba
+
+[vpn-server]
 lumba-lumba
 
 [just-installed]
 lumba-lumba
 
-[client]
+[vpn-client]
 localhost

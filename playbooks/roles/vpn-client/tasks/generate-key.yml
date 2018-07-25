@@ -1,0 +1,70 @@
+---
+
+# Generate VPN crypto staff
+#- name: Generate OpenVPN private key
+#  openssl_privatekey:
+#    path: /etc/openvpn/server.key
+#    type: RSA
+#    # TODO: No cipher and passphrase?
+#    size: 4096
+#    owner: root
+#    group: root
+#    mode: 0600
+#
+#- name: test test test
+#  shell: echo bb {{ test }} aa > /tmp/ilya.txt
+# 0.1 mktmpdir
+
+# TODO:
+# 1. Check and install openvpn
+# 2. Check and generate private key
+- name: Generate Lumba-Lumba VPN server private key
+  openssl_privatekey:
+    # TODO: rename?
+    path: /etc/openvpn/private.key
+    type: RSA
+    # TODO: No cipher and passphrase?
+    size: 4096
+    owner: root
+    group: root
+    mode: 0600
+# 3. Generate req from private key
+- name: Generate Lumba-Lumba VPN server CSR (certificate signing request)
+  openssl_csr:
+    path: /etc/openvpn/cert.csr
+    privatekey_path: /etc/openvpn/private.key
+    common_name: "{{ ansible_fqdn }}"
+
+- name: Register certificate signing request as a ansible fact
+  slurp:
+    src: /etc/openvpn/cert.csr
+  register: cert_req_content
+
+## 4. Call remote task on SSL CA to get sertificate using req file
+## 4.1 generate and register uuid
+#- name: Generate uuid to name file with certificate signing request
+#  command: uuidgen
+#  register: uuid
+#
+#- shell: echo {{ uuid.stdout }} > /tmp/ilya.txt
+## 4.3 copy remote:cert.crt to localhost:uuid.crt
+#- copy:
+#    remote_src: yes
+#    src: /etc/openvpn/cert.csr
+#    #dest: /tmp/{{ uuid.stdout }}.csr
+#    dest: /tmp/{{ ansible_fqdn }}.csr
+
+
+# TODO: group, owner, permission
+# 5. Get ta.key from VPN server
+- name: Get ta.key from VPN server
+  copy: content={{ hostvars[groups['vpn-server'][0]]['ta_key_content']['content'] | b64decode }} dest=/etc/openvpn/ta.key
+
+# 6. Get ca.crt from SSL CA
+- name: Get ca.crt from SSL CA
+  copy: content={{ hostvars[groups['ca'][0]]['ca_crt_content']['content'] | b64decode }} dest=/etc/openvpn/ca.crt
+
+# 7. Get crl.pem from SSL CA
+- name: Get crl.pem from SSL CA
+  copy: content={{ hostvars[groups['ca'][0]]['crl_pem_content']['content'] | b64decode }} dest=/etc/openvpn/crl.pem
+

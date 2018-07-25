@@ -1,0 +1,100 @@
+---
+#TODO: move /etc/ssl to variable
+#TODO: add variables for user and group
+
+- name: Install OpenSSL
+  apt:
+    name: openssl
+
+# Prepare OpenSSL infrastructure
+- name: Create directory for OpenSSL CSR (certificate signing requests)
+  file:
+    path: /etc/ssl/csr
+    state: directory
+    owner: root
+    group: root
+    mode: 755
+
+- name: Create directory for OpenSSL private stuff
+  file:
+    path: /etc/ssl/private
+    state: directory
+    owner: root
+    group: root
+    mode: 700
+
+- name: Create directory for OpenSSL collection of certificates
+  file:
+    path: /etc/ssl/certs
+    state: directory
+    owner: root
+    group: root
+    mode: 755
+
+- name: Create empty DB of expired certificates
+  copy:
+    content: ""
+    dest: /etc/ssl/index.txt
+    force: no
+    owner: root
+    group: root
+    mode: 644
+
+# Prepare configs
+- name: Copy config files
+  copy:
+    remote_src: no
+    # TODO: ansible root directory variable
+    src: ../conf/openssl.cnf
+    dest: /etc/ssl/
+    owner: root
+    group: root
+    mode: 0640
+
+# Generate CA crypto staff
+- name: Generate Lumba-Lumba CA private key
+  openssl_privatekey:
+    path: /etc/ssl/private/ca.pem
+    type: RSA
+    cipher: DES3
+    # TODO: change and hide passphrase
+    passphrase: qwerty
+    size: 4096
+    owner: root
+    group: root
+    mode: 0640
+
+- name: Generate Lumba-Lumba CA CSR (certificate signing request)
+  openssl_csr:
+    path: /etc/ssl/csr/ca.csr
+    privatekey_path: /etc/ssl/private/ca.pem
+    # TODO: change and hide passphrase
+    privatekey_passphrase: qwerty
+    common_name: lumba-lumba-ca
+
+- name: Generate Lumba-Lumba CA self-signed certificate
+  openssl_certificate:
+    path: /etc/ssl/certs/ca.crt
+    privatekey_path: /etc/ssl/private/ca.pem
+    # TODO: change and hide passphrase
+    privatekey_passphrase: qwerty
+    csr_path: /etc/ssl/csr/ca.csr
+    provider: selfsigned
+
+- name: Register content of ca.crt as an ansible fact
+  slurp:
+    src: /etc/ssl/certs/ca.crt
+  register: ca_crt_content
+
+- name: Generate Lumba-Lumba CA CRL file (list of expired certificates)
+  # TODO: care about permissions
+  # TODO: find a proper way to pass password
+  # TODO: copy to VPN server (or share by other way)
+  command: openssl ca -gencrl -out /etc/ssl/crl.pem -key qwerty creates=/etc/ssl/crl.pem
+  #stdin: "qwerty"
+
+- name: Register content of ca.crt as an ansible fact
+  slurp:
+    src: /etc/ssl/crl.pem
+  register: crl_pem_content
+

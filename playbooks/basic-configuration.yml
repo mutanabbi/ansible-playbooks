@@ -3,4 +3,16 @@
   roles:
     - basic-configuration
     - wireguard
-    - openvpn
+
+- hosts: ca
+  roles:
+    - ca
+
+- hosts: vpn-server
+  roles:
+    - vpn-server
+
+- hosts: localhost
+  connection: local
+  roles:
+    - vpn-client
