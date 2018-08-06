@@ -1,8 +1,8 @@
 ---
-- hosts: just-installed
-  roles:
-    - basic-configuration
-    - wireguard
+#- hosts: just-installed
+  #roles:
+    #- basic-configuration
+    #- wireguard
 
 - hosts: ca
   roles:
@@ -16,3 +16,16 @@
   connection: local
   roles:
     - vpn-client
+
+- hosts: ca
+  tasks:
+    - include_tasks: roles/ca/tasks/sign-certs.yml
+      with_items: "{{ groups['vpn-client'] }}"
+
+- hosts: vpn-client
+  connection: local
+  tasks:
+    - copy:
+        content: "{{ hostvars[groups['ca'][0]]['certs'][inventory_hostname]['content'] | b64decode }}"
+        dest: /etc/openvpn/cert.crt
+

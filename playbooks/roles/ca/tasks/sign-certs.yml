@@ -1,0 +1,22 @@
+- debug:
+    msg: "{{ hostvars[item]['cert_req_content']['content'] }}"
+
+- name: Save content of cert sign request of "{{ hostvars[item]['ansible_fqdn'] }}" to CA
+  copy: content="{{ hostvars[item]['cert_req_content']['content'] | b64decode }}" dest="/etc/ssl/csr/{{ hostvars[item]['ansible_fqdn'] }}.csr"
+
+- name: Sign certificate for "{{ hostvars[item]['ansible_fqdn'] }}"
+  openssl_certificate:
+    path: "/etc/ssl/csr/{{ hostvars[item]['ansible_fqdn'] }}.crt"
+    privatekey_path: /etc/ssl/private/ca.pem
+    # TODO: change and hide passphrase
+    privatekey_passphrase: qwerty
+    csr_path: "/etc/ssl/csr/{{ hostvars[item]['ansible_fqdn'] }}.csr"
+    provider: selfsigned
+
+- name: Register content of "{{ hostvars[item]['ansible_fqdn'] }}.crt" as an ansible fact
+  slurp:
+    src: "/etc/ssl/csr/{{ hostvars[item]['ansible_fqdn'] }}.crt"
+  register: cert_tmp
+
+- set_fact:
+    certs: "{{ certs | default({}) | combine( { item : cert_tmp } ) }}"
