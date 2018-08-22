@@ -1,0 +1,17 @@
+[all:vars]
+ansible_user=root
+ansible_host=localhost
+ansible_ssh_pass=screencast
+ansible_python_interpreter=/usr/bin/python3
+
+[ca]
+test-ca ansible_port=5555
+
+[vpn-server]
+test-vpn-server ansible_port=5556
+
+[vpn-client]
+test-vpn-client1 ansible_port=5557
+test-vpn-client2 ansible_port=5558
+test-vpn-client3 ansible_port=5559
+

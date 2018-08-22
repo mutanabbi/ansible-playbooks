@@ -1,0 +1,32 @@
+SSL_BASE_DIR: "/etc/ssl"
+
+# directory for certificate signing requests
+SSL_CSR_DIR: "{{ SSL_BASE_DIR }}/csr"
+# directory for private stuff
+SSL_PRV_DIR: "{{ SSL_BASE_DIR }}/private"
+# directory for certificates
+SSL_CRT_DIR: "{{ SSL_BASE_DIR }}/certs"
+
+# private key
+SSL_PRV_FNAME: "ca.pem"
+# private key password
+SSL_PRV_PWD: "qwerty"
+# private key length
+SSL_PRV_SIZE: 4096
+# private key type
+SSL_PRV_TYPE: "RSA"
+# private key encryption algorithm
+SSL_PRV_CIPHER: "DES3"
+
+SSL_CA_NAME: "lumba-lumba-ca"
+# certificate signing request
+SSL_CSR_FNAME: "ca.csr"
+# certificate
+SSL_CRT_FNAME: "ca.crt"
+# certificate revocation list
+SSL_CRL_FNAME: "crl.pem"
+# database of expired certificates
+SSL_IDX_FNAME: "index.txt"
+
+SSL_USER: "root"
+SSL_GROUP: "root"

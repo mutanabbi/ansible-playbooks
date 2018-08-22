@@ -1,14 +1,15 @@
 [ ca ]
 default_ca = CA_default
+
 [ CA_default ]
-dir = /etc/ssl/
+dir = {{ SSL_BASE_DIR }}
 crl_dir = $dir
-database = $dir/index.txt
+database = $dir/{{ SSL_IDX_FNAME }}
 new_certs_dir = $dir
-certificate = $dir/certs/ca.crt
+certificate = {{ SSL_CRT_DIR }}/{{ SSL_CRT_FNAME }}
 serial = $dir
-crl = $dir/crl.pem
-private_key = $dir/private/ca.pem
+crl = $dir/{{ SSL_CRL_FNAME }}
+private_key = {{ SSL_PRV_DIR }}/{{ SSL_PRV_FNAME }}
 RANDFILE = $dir/.rand
 default_days = 3650
 default_crl_days = 365
@@ -16,28 +17,34 @@ default_md = md5
 unique_subject = yes
 policy = policy_any
 x509_extensions = user_extensions
+
 [ policy_any ]
 organizationName = match
 organizationalUnitName = optional
 commonName = supplied
+
 [req]
 default_bits = 4096
-default_keyfile = lumba-lumba-priv.pem
-distinguished_name = lumba-lumba
+default_keyfile = {{ SSL_PRV_DIR }}/{{ SSL_PRV_FNAME }}
+distinguished_name = {{ SSL_CA_NAME }}
 x509_extensions = CA_extensions
 prompt = no
-[lumba-lumba]
+
+[{{ SSL_CA_NAME }}]
 SN=RU
 ST=StP
 L=Saint-Petersburg
 O=Lumba-Lumba server
 CN=Ilya Kolesnikovich
 emailAddress=ravishankar@mail.ru
+
 [ user_extensions ]
 basicConstraints = CA:FALSE
+
 [ CA_extensions ]
 basicConstraints = CA:TRUE
 default_days = 3650
+
 [ server ]
 basicConstraints = CA:FALSE
 nsCertType = server

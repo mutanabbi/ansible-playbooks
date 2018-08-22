@@ -12,20 +12,39 @@
   roles:
     - vpn-server
 
-- hosts: localhost
-  connection: local
+- hosts: vpn-client
   roles:
     - vpn-client
 
 - hosts: ca
   tasks:
     - include_tasks: roles/ca/tasks/sign-certs.yml
+      with_items: "{{ groups['vpn-server'] }}"
+
+- hosts: ca
+  tasks:
+    - include_tasks: roles/ca/tasks/sign-certs.yml
       with_items: "{{ groups['vpn-client'] }}"
 
+- hosts: vpn-server
+  tasks:
+    - copy:
+        content: "{{ hostvars[groups['ca'][0]]['certs'][inventory_hostname]['content'] | b64decode }}"
+        dest: /etc/openvpn/vpn-server.crt
+
 - hosts: vpn-client
-  connection: local
   tasks:
     - copy:
         content: "{{ hostvars[groups['ca'][0]]['certs'][inventory_hostname]['content'] | b64decode }}"
         dest: /etc/openvpn/cert.crt
+
+- hosts: vpn-server
+  tasks:
+    - name: Check async task
+      async_status:
+        jid: "{{ df_sleeper.ansible_job_id }}"
+      register: df_result
+      until: df_result.finished
+      retries: 60
+      delay: 30
 

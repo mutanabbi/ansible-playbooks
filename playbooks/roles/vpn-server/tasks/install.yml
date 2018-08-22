@@ -1,8 +1,12 @@
 ---
-
+#TODO: avoid copypaste w/ roles/vpn-client/tasks/install.yml, roles/vpn-server/tasks/install.yml and roles/ca-server/tasks/install.yml
 - name: Install OpenVPN
+  when: ansible_os_family == "Debian"
   apt:
-    name: openvpn
+    name:
+      - openvpn
+      - python-openssl
+      - python3-openssl
 
 # Prepare OpenVPN infrastructure
 - name: Create directory for OpenVPN logs
@@ -56,41 +60,20 @@
 
 - name: Generate Lumba-Lumba VPN server CSR (certificate signing request)
   openssl_csr:
-    path: /etc/ssl/csr/lumba-lumba-vpn.csr
+    path: /etc/openvpn/lumba-lumba-vpn.csr
     privatekey_path: /etc/openvpn/server.key
     common_name: lumba-lumba-vpn
 
-- stat: path=/etc/openvpn/ca.crt
-  register: vpn_server_cert
-
-- name: Generate Lumba-Lumba VPN server certificate (signed by Lumba-Lumba CA)
-  openssl_certificate:
-    path: /etc/openvpn/vpn-server.crt
-    privatekey_path: /etc/ssl/private/ca.pem
-    # TODO: change and hide passphrase
-    privatekey_passphrase: qwerty
-    csr_path: /etc/ssl/csr/lumba-lumba-vpn.csr
-    provider: selfsigned
-  when: vpn_server_cert is defined
-  register: vpn_server_cert_generation
+- name: Register certificate signing request as a ansible fact
+  slurp:
+    src: /etc/openvpn/lumba-lumba-vpn.csr
+  register: cert_req_content
 
 - name: Copy Lumba-Lumba CA public certificate to Lumba-Lumba OpenVPN server config directory
   copy: content={{ hostvars[groups['ca'][0]]['ca_crt_content']['content'] | b64decode }} dest=/etc/openvpn/ca.crt
 
 - name: Copy Lumba-Lumba CA CRL file (list of expired certificates)
   copy: content={{ hostvars[groups['ca'][0]]['crl_pem_content']['content'] | b64decode }} dest=/etc/openvpn/crl.pem
-
-- name: Generate Diffie-Hellman file to protect session keys (This is going to take a long time)
-  command: openssl dhparam -out /etc/openvpn/dh.pem 4096 creates=/etc/openvpn/dh.pem
-  #async: 45
-  #poll: 5
-  tags: optional
-# Available starting ansible-2.5
-#- name: Generate Lumba-Lumba VPN Diffie-Hellman parameters
-#  openssl_dhparam:
-#    path: /etc/openvpn/dh.pem
-#    size: 4096
-#
 
 - name: Generate HMAC-key to prevent DDoS
   command: openvpn --genkey --secret /etc/openvpn/ta.key creates=/etc/openvpn/ta.key
@@ -99,6 +82,20 @@
   slurp:
     src: /etc/openvpn/ta.key
   register: ta_key_content
+
+# TODO: Available starting ansible-2.5
+#- name: Generate Lumba-Lumba VPN Diffie-Hellman parameters
+#  openssl_dhparam:
+#    path: /etc/openvpn/dh.pem
+#    size: 4096
+#
+- name: Generate Diffie-Hellman file to protect session keys (This is going to take a long time)
+  command: openssl dhparam -out /etc/openvpn/dh.pem 4096 creates=/etc/openvpn/dh.pem
+  async: 108000 # 30 minutes
+  poll: 0
+  register: df_sleeper
+  tags: optional
+
 
 #TODO: sudo systemctl restart openvpn@server.service
 # To be able to investigate startup errors you can edit /lib/systemd/system/openvpn@.service and add --log /var/log/ilya.txt --verb 9 to the ExecStart field

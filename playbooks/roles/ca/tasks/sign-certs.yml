@@ -1,21 +1,27 @@
-- debug:
-    msg: "{{ hostvars[item]['cert_req_content']['content'] }}"
+- set_fact:
+    CA_CLIENT_NAME: "{{ hostvars[item]['ansible_fqdn'] }}"
 
-- name: Save content of cert sign request of "{{ hostvars[item]['ansible_fqdn'] }}" to CA
-  copy: content="{{ hostvars[item]['cert_req_content']['content'] | b64decode }}" dest="/etc/ssl/csr/{{ hostvars[item]['ansible_fqdn'] }}.csr"
+- set_fact:
+    CSR_FNAME: "{{ CA_CLIENT_NAME }}.csr"
+    CRT_FNAME: "{{ CA_CLIENT_NAME }}.crt"
 
-- name: Sign certificate for "{{ hostvars[item]['ansible_fqdn'] }}"
+- name: Save content of cert sign request of "{{ CA_CLIENT_NAME }}" to CA
+  copy:
+    content: "{{ hostvars[item]['cert_req_content']['content'] | b64decode }}"
+    dest: "{{ SSL_CSR_DIR }}/{{ CSR_FNAME }}"
+
+- name: Sign certificate for "{{ CA_CLIENT_NAME }}"
   openssl_certificate:
-    path: "/etc/ssl/csr/{{ hostvars[item]['ansible_fqdn'] }}.crt"
-    privatekey_path: /etc/ssl/private/ca.pem
+    path: "{{ SSL_CRT_DIR }}/{{ CRT_FNAME }}"
+    privatekey_path: "{{ SSL_PRV_DIR }}/{{ SSL_PRV_FNAME }}"
     # TODO: change and hide passphrase
-    privatekey_passphrase: qwerty
-    csr_path: "/etc/ssl/csr/{{ hostvars[item]['ansible_fqdn'] }}.csr"
+    privatekey_passphrase: "{{ SSL_PRV_PWD }}"
+    csr_path: "{{ SSL_CSR_DIR }}/{{ CSR_FNAME }}"
     provider: selfsigned
 
-- name: Register content of "{{ hostvars[item]['ansible_fqdn'] }}.crt" as an ansible fact
+- name: Register content of "{{ CRT_FNAME }}" as an ansible fact
   slurp:
-    src: "/etc/ssl/csr/{{ hostvars[item]['ansible_fqdn'] }}.crt"
+    src: "{{ SSL_CRT_DIR }}/{{ CRT_FNAME }}"
   register: cert_tmp
 
 - set_fact:

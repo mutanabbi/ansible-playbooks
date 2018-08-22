@@ -1,2 +1,11 @@
 ---
+#TODO: avoid copypaste w/ roles/vpn-client/tasks/install.yml, roles/vpn-server/tasks/install.yml and roles/ca-server/tasks/install.yml
+- name: Install OpenVPN
+  when: ansible_os_family == "Debian"
+  apt:
+    name:
+      - openvpn
+      - python-openssl
+      - python3-openssl
+
 - import_tasks: generate-key.yml
